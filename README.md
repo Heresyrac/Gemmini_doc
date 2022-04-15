@@ -3,23 +3,40 @@
 Gemmini
 ====================================
 
-本文档将会介绍将深度学习模型移植到gemmini上并运行模型完成推理的一些步骤,以及介绍了一些操作过程中可能遇到的弯路以及规避方式。
+本文档将会介绍将深度学习模型移植到gemmini上，并使用spike模拟器运行模型完成推理的一般步骤,同时会介绍了一些操作过程中可能遇到的弯路以及规避方式。
+从某框架（如Pytorch，TensorFlow等）移植模型大致需要的步骤包括：
 
+1.将待移植的模型从onnx支持的框架中导出，得到onnx模型 
 
-Gemmini is part of the [Chipyard](https://github.com/ucb-bar/chipyard) ecosystem, and was developed using the [Chisel](https://www.chisel-lang.org/) hardware description language.
+2.完成chipyard，gemmini，onnxruntime-riscv以及相关工具链的安装
 
-This document is intended to provide information for beginners wanting to try out Gemmini, as well as more advanced in-depth information for those who might want to start hacking on Gemmini's source code.
+3.用onnxruntime-riscv中提供的工具，将导出的onnx模型的数据类型从fp32转化为适合gemmini运行的int8，得到一个已量化的onnx模型 
 
+4.根据待完成的任务类型、数据输入，编写并编译一个运行器。 
 
-网络环境
+5.使用spike 运行编译好的运行器。待推理的数据，已量化的onnx模型则作为输入给出，推理结果由运行器给出。
+
+运行环境
+==========
+Ubuntu 18.0
+若在docker容器中尝试安装
+
+网络设置
 ==========
 
-We provide here a quick guide to installing Gemmini's dependencies (Chipyard and Spike), building Gemmini hardware and software, and then running that software on our hardware simulators.
+由于chipyard，gemmini，onnxruntime-riscv以及相关工具链的安装构建中需要使用的脚本，存在着如果中途因为网络问题下载失败而退出，后续即使重新运行也会导致无法正确安装的情况。
 
-Dependencies
----------
+同时，经过测试发现脚本中的存在一些站点，存在依靠国内网络会出现必定下载失败，又或是通过HTTPS协议clone必定失败的情况。
 
-Before beginning, install the [Chipyard dependencies](https://chipyard.readthedocs.io/en/latest/Chipyard-Basics/Initial-Repo-Setup.html#requirements) that are described here.
+因此建议在进行一切工作之前，首先需要：
+
+1.设置好某种翻墙工具，如vpn，V2RAY代理均可。若使用代理需设置git的下载均通过代理完成。
+
+2.启用SSH协议进行clone，介绍详见 [这里](https://docs.github.com/cn/authentication/connecting-to-github-with-ssh).
+
+3.在git设置中设置用SSH协议代替HTTPS协议进行下载。
+
+4.在git设置中设定，通过代理进行ssh连接，以避免ssh连接不稳定引发的安装失败。
 
 Installing Chipyard and Spike
 -----------------------------

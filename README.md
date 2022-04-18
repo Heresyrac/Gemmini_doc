@@ -4,12 +4,15 @@ Gemmini
 ====================================
 
 本文档将会介绍将深度学习模型移植到gemmini上，并使用spike模拟器运行模型完成推理的一般步骤,同时会介绍了一些操作过程中可能遇到的弯路以及规避方式。
+流程主要涉及到三个项目，[chipyard](https://chipyard.readthedocs.io/en/stable/)，[gemmini](https://github.com/ucb-bar/gemmini),[onnxruntime_riscv](https://github.com/ucb-bar/onnxruntime-riscv)
+
 
 从某框架（如Pytorch，TensorFlow等）移植模型大致需要的步骤包括：
 
-1.将待移植的模型从onnx支持的框架中导出，得到onnx模型 
 
-2.完成chipyard，gemmini，onnxruntime-riscv以及相关工具链的安装
+1.完成chipyard，gemmini，onnxruntime-riscv以及相关工具链的安装
+
+2.将待移植的模型从onnx支持的框架中导出，得到onnx模型 
 
 3.用onnxruntime-riscv中提供的工具，将导出的onnx模型的数据类型从fp32转化为适合gemmini运行的int8，得到一个已量化的onnx模型 
 
@@ -19,9 +22,7 @@ Gemmini
 
 运行环境
 ==========
-Ubuntu 18.0
-若在docker容器中尝试安装
-
+Ubuntu 18.04
 网络设置
 ==========
 
@@ -35,9 +36,51 @@ Ubuntu 18.0
 
 2.启用SSH协议进行clone，介绍详见 [这里](https://docs.github.com/cn/authentication/connecting-to-github-with-ssh).
 
-3.在git设置中设置用SSH协议代替HTTPS协议进行下载。
+3.设置git用SSH协议代替HTTPS协议进行下载。
+```shell
+git config --global url.ssh://git@github.com/.insteadOf https://github.com/
+```
+4.若使用代理，在git设置中设定通过代理进行ssh连接，以避免ssh连接不稳定引发的安装失败。
+```shell
+#打开git config文件
+vim ~/.gitconfig
 
-4.在git设置中设定，通过代理进行ssh连接，以避免ssh连接不稳定引发的安装失败。
+#若代理协议为socks5，在文件内写入：
+[core]
+        gitProxy = /opt/bin/socks5proxywrapper
+```
+
+若协议为socks5，则创建socks5proxywrapper文件：
+
+```shell
+vim /opt/bin/socks5proxywrapper
+
+#若代理ip为127.0.0.1 端口为10808，协议为socks5，则在文件内写入：
+
+#!/bin/sh
+/usr/bin/ncat --proxy 127.0.0.1:10808 --proxy-type socks5 "$@"
+
+```
+
+进行上述网络设置以尽量保证在运行chipyard，gemmini，onnxruntime的诸个安装脚本时能够一次通过。若中途某一步骤中出现了因网络原因而执行失败的情况，尽量选择删除当前文件夹内的内容，并从头再来。否则即使后续显示安装成功，实际使用时也可能出现各种未知错误。
+
+
+安装chipyard
+====================================
+Chipyard dependencies
+---------------------------
+chipyard安装的详细信息见 [此处](https://chipyard.readthedocs.io/en/stable/Chipyard-Basics/Initial-Repo-Setup.html),此处只需要根据1.4.1节中的步骤安装依赖即可。
+
+*若使用本页中提供的镜像，其中自带的chipyard可能存在版本过旧等数个问题，会导致后续安装出错，删除镜像中的chipyard文件后并在后续步骤自行clone可避免后续麻烦。
+
+安装chipyard，gemmini
+------------------------------
+遵照[此处](https://github.com/ucb-bar/gemmini) Quick Start的指示，运行到Run Simulators为止。若Run Simulators内的步骤运行成功，则说明本部分安装成功。
+
+*注意Installing Chipyard and Spike部分中的，source env.sh命令。这个命令的功能是为chipyard的工具设置一系列环境变量，而这个命令在每次进入当前环境时都会失效并需要重新输入，为保证后续步骤也能正常运行，建议将```source ~/chipyard/env.sh``` 写入.bashrc中。
+
+
+
 
 Installing Chipyard and Spike
 -----------------------------
@@ -62,6 +105,7 @@ cd toolchains/esp-tools/riscv-isa-sim/build
 git fetch && git checkout 090e82c473fd28b4eb2011ffcd771ead6076faab
 make && make install
 ```
+
 
 Setting Up Gemmini
 ------------------

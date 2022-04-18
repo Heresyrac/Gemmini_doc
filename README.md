@@ -4,7 +4,7 @@ Gemmini
 ====================================
 
 本文档将会介绍将深度学习模型移植到gemmini上，并使用spike模拟器运行模型完成推理的一般步骤,同时会介绍了一些操作过程中可能遇到的弯路以及规避方式。
-流程主要涉及到三个项目，[chipyard](https://chipyard.readthedocs.io/en/stable/)，[gemmini](https://github.com/ucb-bar/gemmini),[onnxruntime_riscv](https://github.com/ucb-bar/onnxruntime-riscv)
+流程主要涉及到三个项目，[chipyard](https://chipyard.readthedocs.io/en/stable/)，[gemmini](https://github.com/ucb-bar/gemmini), [onnxruntime_riscv](https://github.com/ucb-bar/onnxruntime-riscv)
 
 
 从某框架（如Pytorch，TensorFlow等）移植模型大致需要的步骤包括：

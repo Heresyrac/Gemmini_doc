@@ -26,9 +26,9 @@ Ubuntu 18.04
 网络设置
 ==========
 
-由于chipyard，gemmini，onnxruntime-riscv以及相关工具链的安装构建中需要使用的脚本，存在着如果中途因为网络问题下载失败而退出，后续即使重新运行也会导致无法正确安装的情况。
+由于chipyard，gemmini，onnxruntime-riscv以及相关工具链的安装构建中需要使用的脚本，存在着如果中途因为网络问题下载失败而退出，后续即使重新运行也会导致无法正确安装的问题。
 
-同时，经过测试发现脚本中的存在一些站点，存在依靠国内网络会出现必定下载失败，又或是通过HTTPS协议clone必定失败的情况。
+同时，经过测试发现脚本中的存在一些站点，存在依靠国内网络会出现必定下载失败（包括google-source站点），又或是通过HTTPS协议clone必定失败的情况。
 
 因此建议在进行一切工作之前，首先需要：
 
@@ -37,10 +37,13 @@ Ubuntu 18.04
 2.启用SSH协议进行clone，介绍详见 [这里](https://docs.github.com/cn/authentication/connecting-to-github-with-ssh).
 
 3.设置git用SSH协议代替HTTPS协议进行下载。
+
 ```shell
 git config --global url.ssh://git@github.com/.insteadOf https://github.com/
 ```
+
 4.若使用代理，在git设置中设定通过代理进行ssh连接，以避免ssh连接不稳定引发的安装失败。
+
 ```shell
 #打开git config文件
 vim ~/.gitconfig
@@ -67,17 +70,140 @@ vim /opt/bin/socks5proxywrapper
 
 安装chipyard
 ====================================
+
 Chipyard dependencies
 ---------------------------
+
+本部分用于安装chipyard所需的依赖项，其中所需的操作包括：
+
+CentOS-based 平台的用户根据如下命令下载依赖项：
+```shell
+#!/bin/bash
+
+set -ex
+
+sudo yum groupinstall -y "Development tools"
+sudo yum install -y gmp-devel mpfr-devel libmpc-devel zlib-devel vim git java java-devel
+
+# Install SBT https://www.scala-sbt.org/release/docs/Installing-sbt-on-Linux.html#Red+Hat+Enterprise+Linux+and+other+RPM-based+distributions
+# sudo rm -f /etc/yum.repos.d/bintray-rpm.repo
+# Use rm above if sbt installed from bintray before.
+curl -L https://www.scala-sbt.org/sbt-rpm.repo > sbt-rpm.repo
+sudo mv sbt-rpm.repo /etc/yum.repos.d/
+
+sudo yum install -y sbt texinfo gengetopt
+sudo yum install -y expat-devel libusb1-devel ncurses-devel cmake "perl(ExtUtils::MakeMaker)"
+# deps for poky
+sudo yum install -y python38 patch diffstat texi2html texinfo subversion chrpath git wget
+# deps for qemu
+sudo yum install -y gtk3-devel
+# deps for firemarshal
+sudo yum install -y python38-pip python38-devel rsync libguestfs-tools makeinfo expat ctags
+# Install GNU make 4.x (needed to cross-compile glibc 2.28+)
+sudo yum install -y centos-release-scl
+sudo yum install -y devtoolset-8-make
+# install DTC
+sudo yum install -y dtc
+sudo yum install -y python
+
+# install verilator
+git clone http://git.veripool.org/git/verilator
+cd verilator
+git checkout v4.034
+autoconf && ./configure && make -j$(nproc) && sudo make install
+```
+
+Ubuntu/Debian-based 平台的用户根据如下命令下载依赖项：
+
+```shell
+#!/bin/bash
+
+set -ex
+
+sudo apt-get install -y build-essential bison flex software-properties-common curl
+sudo apt-get install -y libgmp-dev libmpfr-dev libmpc-dev zlib1g-dev vim default-jdk default-jre
+# install sbt: https://www.scala-sbt.org/release/docs/Installing-sbt-on-Linux.html#Ubuntu+and+other+Debian-based+distributions
+echo "deb https://repo.scala-sbt.org/scalasbt/debian /" | sudo tee -a /etc/apt/sources.list.d/sbt.list
+curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | sudo apt-key add
+sudo apt-get update
+sudo apt-get install -y sbt
+sudo apt-get install -y texinfo gengetopt
+sudo apt-get install -y libexpat1-dev libusb-dev libncurses5-dev cmake
+# deps for poky
+sudo apt-get install -y python3.8 patch diffstat texi2html texinfo subversion chrpath wget
+# deps for qemu
+sudo apt-get install -y libgtk-3-dev gettext
+# deps for firemarshal
+sudo apt-get install -y python3-pip python3.8-dev rsync libguestfs-tools expat ctags
+# install DTC
+sudo apt-get install -y device-tree-compiler
+sudo apt-get install -y python
+# install git >= 2.17
+sudo add-apt-repository ppa:git-core/ppa -y
+sudo apt-get update
+sudo apt-get install git -y
+
+# install verilator
+sudo apt-get install -y autoconf
+git clone http://git.veripool.org/git/verilator
+cd verilator
+git checkout v4.034
+autoconf && ./configure && make -j$(nproc) && sudo make install
+```
+
+
 chipyard安装的详细信息见 [此处](https://chipyard.readthedocs.io/en/stable/Chipyard-Basics/Initial-Repo-Setup.html),此处只需要根据1.4.1节中的步骤安装依赖即可。
 
 *若使用本页中提供的镜像，其中自带的chipyard可能存在版本过旧等数个问题，会导致后续安装出错，删除镜像中的chipyard文件后并在后续步骤自行clone可避免后续麻烦。
 
 安装chipyard，gemmini
 ------------------------------
-遵照[此处](https://github.com/ucb-bar/gemmini) Quick Start的指示，运行到Run Simulators为止。若Run Simulators内的步骤运行成功，则说明本部分安装成功。
 
-*注意Installing Chipyard and Spike部分中的，source env.sh命令。这个命令的功能是为chipyard的工具设置一系列环境变量，而这个命令在每次进入当前环境时都会失效并需要重新输入，为保证后续步骤也能正常运行，建议将```source ~/chipyard/env.sh``` 写入.bashrc中。
+遵照[此处](https://github.com/ucb-bar/gemmini) Quick Start的指示的命令，运行到Run Simulators为止。
+
+其中包括：
+
+1.Installing Chipyard and Spike 本部分包括安装chipyard，构建chipyard工具链，设置chipyard的环境变量，安装gemmini，安装spike。
+
+2.Setting Up Gemmini 本部分用于设置gemmini的文件、符号链接和子目录。
+
+3.Building Gemmini Software 本部分用于构建 Gemmini程序，以及一些测试程序（如ResNet50），完成之后将会生成上述程序的二进制文件。
+
+4.Building Gemmini Hardware and Cycle-Accurate Simulators 本部分用于通过Verilator创建时钟准确的模拟器，同时也会生成Soc的verilog文件。
+
+5.Building Gemmini Functional Simulators 本部分用于通过spike构建功能模拟器
+
+6.Run Simulators 本部分用于运行测试程序
+
+若Run Simulators内的步骤运行成功，则说明本部分安装成功。
+
+*如前文所述，本部分安装步骤需要运行大量脚本，其运行时间可能较长，如果运行中途出现网络问题导致脚本运行失败，则最好直接删除chipyard文件，解决网络问题后重新安装以避免后续可能出现的各种问题。
+
+*注意Installing Chipyard and Spike部分中的，source env.sh命令。这个命令的功能是为chipyard设置一系列环境变量，而这个命令在每次进入当前环境时都会失效并需要重新输入，为保证后续步骤也能正常运行，建议将```source ~/chipyard/env.sh``` 写入.bashrc中，以保证每当进入当前环境时，env.sh 总是被执行过。
+
+
+安装onnxruntime—riscv
+------------------------------
+
+在完成安装gemmini后，[gemmini](https://github.com/ucb-bar/gemmini#software)中software一节介绍了运行onnx模型的方法，且在```chipyard/gemmini/software/onnxruntim-riscv```的位置，gemmini已经安装了onnxruntime-riscv。
+
+但需要注意的是，此处gemmini的文档的链接指向的是一个非常陈旧的onnxruntime的文档，且gemmini中已经包含的onnxruntim-riscv也是一个较旧的版本。因此不需要执行gemmini中software介绍的步骤，而可以直接阅读[此处](https://github.com/ucb-bar/onnxruntime-riscv/blob/2021-12-23/systolic_runner/docs/BUILD.md)文档中的步骤进行操作。此文档存在部分描述不清和细节缺失的问题，详细步骤如下：
+
+1.Setting up your Toolchain 本步骤对应的是安装chipyard时```./scripts/build-toolchains.sh esp-tools```命令，若已经根据上述步骤成功安装chipyard 的Toolchain，则本部分不需要额外操作。
+
+2. Building this repo
+在运行该部分前可以确认当前环境的cmake版本是否大于12，若不满足，后续的构建可能会报错，此处要求的新版的cmake可能并不支持自动安装，而需要手动拉取源码并进行编译。其具体步骤如下：
+
+【】则说明安装成功。
+
+若已经安装toolchain，且在当前环境中运行过env.sh的话，本步骤要求的"have riscv g++ in your PATH"就已经满足。
+
+安装前首先删除位于 ```chipyard/gemmini/software```的onnxruntime-riscv
+
+3. Running via Spike
+
+
+
 
 
 

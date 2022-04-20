@@ -26,7 +26,7 @@ Ubuntu 18.04
 网络设置
 ==========
 
-由于chipyard，gemmini，onnxruntime-riscv以及相关工具链的安装构建中需要使用的脚本，存在着如果中途因为网络问题下载失败而退出，后续即使重新运行也会导致无法正确安装的问题。
+由于chipyard，gemmini，onnxruntime-riscv以及相关工具链的安装编译中需要使用的脚本，存在着如果中途因为网络问题下载失败而退出，后续即使重新运行也会导致无法正确安装的问题。
 
 同时，经过测试发现脚本中的存在一些站点，存在依靠国内网络会出现必定下载失败（包括google-source站点），又或是通过HTTPS协议clone必定失败的情况。
 
@@ -163,15 +163,15 @@ chipyard安装的详细信息见 [此处](https://chipyard.readthedocs.io/en/sta
 
 其中包括：
 
-1.```Installing Chipyard and Spike``` 本部分包括安装chipyard，构建chipyard工具链，设置chipyard的环境变量，安装gemmini，安装spike。
+1.```Installing Chipyard and Spike``` 本部分包括安装chipyard，编译chipyard工具链，设置chipyard的环境变量，安装gemmini，安装spike。
 
 2.```Setting Up Gemmini``` 本部分用于设置gemmini的文件、符号链接和子目录。
 
-3.```Building Gemmini Software``` 本部分用于构建 Gemmini程序，以及一些测试程序（如ResNet50），完成之后将会生成上述程序的二进制文件。
+3.```Building Gemmini Software``` 本部分用于编译 Gemmini程序，以及一些测试程序（如ResNet50），完成之后将会生成上述程序的二进制文件。
 
 4.```Building Gemmini Hardware and Cycle-Accurate Simulators``` 本部分用于通过Verilator创建时钟准确的模拟器，同时也会生成Soc的verilog文件。
 
-5.```Building Gemmini Functional Simulators``` 本部分用于通过spike构建功能模拟器
+5.```Building Gemmini Functional Simulators``` 本部分用于通过spike编译功能模拟器
 
 6.```Run Simulators``` 本部分用于运行测试程序
 
@@ -185,22 +185,66 @@ chipyard安装的详细信息见 [此处](https://chipyard.readthedocs.io/en/sta
 安装onnxruntime—riscv
 ------------------------------
 
-在完成安装gemmini后，[gemmini](https://github.com/ucb-bar/gemmini#software)中software一节介绍了运行onnx模型的方法，且在```chipyard/gemmini/software/onnxruntim-riscv```的位置，gemmini已经安装了onnxruntime-riscv。
+在完成安装gemmini后，[gemmini](https://github.com/ucb-bar/gemmini#software)中software一节介绍了运行onnx模型的方法，且在```chipyard/gemmini/software/onnxruntim-riscv```的位置，gemmini已经安装了onnxruntime-riscv。但需要注意的是，此处gemmini的文档的链接指向的是一个非常陈旧的onnxruntime的分支，且gemmini中已经包含的onnxruntim-riscv也是一个较旧的版本。
 
-但需要注意的是，此处gemmini的文档的链接指向的是一个非常陈旧的onnxruntime的文档，且gemmini中已经包含的onnxruntim-riscv也是一个较旧的版本。因此不需要执行gemmini中software介绍的步骤，而可以直接阅读[此处](https://github.com/ucb-bar/onnxruntime-riscv/blob/2021-12-23/systolic_runner/docs/BUILD.md)文档中的步骤进行操作。若要测试在spike上运行模型，则需要根据如下步骤操作。此文档存在部分描述不清和细节缺失的问题，详细描述如下：
+因此不需要执行gemmini中software介绍的步骤，而可以直接阅读[此处](https://github.com/ucb-bar/onnxruntime-riscv/blob/2021-12-23/systolic_runner/docs/BUILD.md)文档中的步骤进行操作。若要测试在spike上运行模型，则需要根据如下步骤操作。此文档存在部分描述不清和细节缺失的问题，详细描述如下：
 
-1.```Setting up your Toolchain``` 本步骤对应的是安装chipyard时```./scripts/build-toolchains.sh esp-tools```命令，若已经根据上述步骤成功安装chipyard 的Toolchain，则本部分不需要额外操作。
+1.```Setting up your Toolchain``` 本步骤对应的是安装chipyard时运行的```./scripts/build-toolchains.sh esp-tools```命令。若已经根据上述步骤成功安装chipyard 的Toolchain，则本部分不需要额外操作。
 
 2. ```Building this repo```
-在运行该部分前可以确认当前环境的cmake版本是否大于12，若不满足，后续的构建可能会报错，此处要求的新版的cmake可能并不支持自动安装，而需要手动拉取源码并进行编译。其具体步骤如下：
+*在运行该部分前需要运行```cmake --version```确认当前环境的cmake版本是否大于3.12.0，若不满足，后续的步骤会报错。此处要求的cmake由于版本较新，可能并不支持自动安装，而需要手动拉取源码并进行编译。[此处](https://blog.csdn.net/Boys_Wu/article/details/104940575)为教程。
 
-【】则说明安装成功。
+若已经安装chipyard的toolchain，且在当前环境中运行过env.sh的话，本步骤要求的"have riscv g++ in your PATH"条件就已经满足。
+本部分分为如下几步：
 
-若已经安装toolchain，且在当前环境中运行过env.sh的话，本步骤要求的"have riscv g++ in your PATH"就已经满足。
+1.1.下载安装onnxruntime
 
-安装前首先删除位于 ```chipyard/gemmini/software```的onnxruntime-riscv
+安装前首先删除位于 ```chipyard/generators/gemmini/software```中的onnxruntime-riscv文件夹
 
-3. ```Running via Spike```
+```shell
+cd chipyard/generators/gemmini/software
+rm -rf onnxruntime-riscv
+git clone  git@github.com:ucb-bar/onnxruntime-riscv.git
+git submodule update --init --recursive
+#安装新版本的onnxruntime-riscv
+```
+
+1.2. 选择启用的Gemmini数据类型
+
+在编译onnxruntime前，需要选择启用的Gemmini数据类型，有fp32与int8可选。选择方式是通过修改```chipyard/generators/gemmini/software/onnxruntime-riscv/cmake/CMakeLists.txt ```文件，找到其中的
+
+```shell
+option(onnxruntime_SYSTOLIC_FP32 "If Systolic is enabled, whether to use for fp32 ops" ON)
+option(onnxruntime_SYSTOLIC_INT8 "If Systolic is enabled, whether to use for int8 ops" OFF) 
+```
+
+并进行修改。
+
+文档中提到的需要确认```systolic_params.h```，```gemmini_params.h```文件是否一致，但在测试中，当前版本在此处并不需要特别进行什么操作。
+
+如果确实需要确认则这两个文件的具体地址分别位于```gemmini/software/gemmini-rocc-tests/include/gemmini_params.h```与```onnxruntime-riscv/onnxruntime/core/mlas/lib/systolic/systolic_params_int8.h```
+
+
+*此处需要注意，fp32与int8同时只能选择启用一项，两者不可兼容。
+
+*其中，如果模型是用于训练，则必须启用fp32.而如果模型是已量化的模型，已将数据转化为int8类型以利用Systolic进行推理的话，则需要启用int8。若启用的类型与模型不符，在运行模型的时候会报“Unsupport datatype” 错误。
+
+*当需要重新编译onnxruntime的时候，必须首先删除```onnxruntime-riscv/build```文件夹，否则运行```build.sh```脚本的时候实际上并不会应用新的设置。
+
+1.3. 编译ORT
+
+在```onnxruntime-riscv```目录下运行```./build.sh --config=Release --parallel```, 以编译ORT(Onnxruntime)。编译的输出可以在```build```文件夹下找到。
+
+其中--config=Release代表以release（-O3）模式编译，--parallel代表并行进行编译。如果希望ORT支持模型训练，还需要加上--enable_training选项。
+
+1.4. 编译runer
+
+Model runner为用于加载ONNX模型进行推理的程序，上一步编译的ORT实际上就是在runner中被调用以完成推理的。对于某种特定的ONNX模型，需要特定的runner以支持其运行。在onnxruntime-riscv/systolic_runner中提供了特定的几个runner(或trainer)以支持模型进行推理或训练,此处以imagenet_runner为例：
+
+*若希望移植其他类型的模型，而此处又没有提供相应的runner，则可能需要自行编写。而关于使用C/C++自行编写model runner，[ONNX官方网站]()上提供的教程极少，仅有ORT的API doc与示例程序且缺乏解释与注释。如果需要参考，```onnxruntime-riscv/systolic_runner```提供的诸个runner的源码。而ONNX提供给其他语言（如Python）的教程，
+
+
+5. ```Running via Spike```
 
 
 

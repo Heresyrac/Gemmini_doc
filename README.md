@@ -163,17 +163,17 @@ chipyard安装的详细信息见 [此处](https://chipyard.readthedocs.io/en/sta
 
 其中包括：
 
-1.Installing Chipyard and Spike 本部分包括安装chipyard，构建chipyard工具链，设置chipyard的环境变量，安装gemmini，安装spike。
+1.```Installing Chipyard and Spike``` 本部分包括安装chipyard，构建chipyard工具链，设置chipyard的环境变量，安装gemmini，安装spike。
 
-2.Setting Up Gemmini 本部分用于设置gemmini的文件、符号链接和子目录。
+2.```Setting Up Gemmini``` 本部分用于设置gemmini的文件、符号链接和子目录。
 
-3.Building Gemmini Software 本部分用于构建 Gemmini程序，以及一些测试程序（如ResNet50），完成之后将会生成上述程序的二进制文件。
+3.```Building Gemmini Software``` 本部分用于构建 Gemmini程序，以及一些测试程序（如ResNet50），完成之后将会生成上述程序的二进制文件。
 
-4.Building Gemmini Hardware and Cycle-Accurate Simulators 本部分用于通过Verilator创建时钟准确的模拟器，同时也会生成Soc的verilog文件。
+4.```Building Gemmini Hardware and Cycle-Accurate Simulators``` 本部分用于通过Verilator创建时钟准确的模拟器，同时也会生成Soc的verilog文件。
 
-5.Building Gemmini Functional Simulators 本部分用于通过spike构建功能模拟器
+5.```Building Gemmini Functional Simulators``` 本部分用于通过spike构建功能模拟器
 
-6.Run Simulators 本部分用于运行测试程序
+6.```Run Simulators``` 本部分用于运行测试程序
 
 若Run Simulators内的步骤运行成功，则说明本部分安装成功。
 
@@ -187,11 +187,11 @@ chipyard安装的详细信息见 [此处](https://chipyard.readthedocs.io/en/sta
 
 在完成安装gemmini后，[gemmini](https://github.com/ucb-bar/gemmini#software)中software一节介绍了运行onnx模型的方法，且在```chipyard/gemmini/software/onnxruntim-riscv```的位置，gemmini已经安装了onnxruntime-riscv。
 
-但需要注意的是，此处gemmini的文档的链接指向的是一个非常陈旧的onnxruntime的文档，且gemmini中已经包含的onnxruntim-riscv也是一个较旧的版本。因此不需要执行gemmini中software介绍的步骤，而可以直接阅读[此处](https://github.com/ucb-bar/onnxruntime-riscv/blob/2021-12-23/systolic_runner/docs/BUILD.md)文档中的步骤进行操作。此文档存在部分描述不清和细节缺失的问题，详细步骤如下：
+但需要注意的是，此处gemmini的文档的链接指向的是一个非常陈旧的onnxruntime的文档，且gemmini中已经包含的onnxruntim-riscv也是一个较旧的版本。因此不需要执行gemmini中software介绍的步骤，而可以直接阅读[此处](https://github.com/ucb-bar/onnxruntime-riscv/blob/2021-12-23/systolic_runner/docs/BUILD.md)文档中的步骤进行操作。若要测试在spike上运行模型，则需要根据如下步骤操作。此文档存在部分描述不清和细节缺失的问题，详细描述如下：
 
-1.Setting up your Toolchain 本步骤对应的是安装chipyard时```./scripts/build-toolchains.sh esp-tools```命令，若已经根据上述步骤成功安装chipyard 的Toolchain，则本部分不需要额外操作。
+1.```Setting up your Toolchain``` 本步骤对应的是安装chipyard时```./scripts/build-toolchains.sh esp-tools```命令，若已经根据上述步骤成功安装chipyard 的Toolchain，则本部分不需要额外操作。
 
-2. Building this repo
+2. ```Building this repo```
 在运行该部分前可以确认当前环境的cmake版本是否大于12，若不满足，后续的构建可能会报错，此处要求的新版的cmake可能并不支持自动安装，而需要手动拉取源码并进行编译。其具体步骤如下：
 
 【】则说明安装成功。
@@ -200,7 +200,7 @@ chipyard安装的详细信息见 [此处](https://chipyard.readthedocs.io/en/sta
 
 安装前首先删除位于 ```chipyard/gemmini/software```的onnxruntime-riscv
 
-3. Running via Spike
+3. ```Running via Spike```
 
 
 

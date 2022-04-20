@@ -23,6 +23,8 @@ Gemmini
 运行环境
 ==========
 Ubuntu 18.04
+
+
 网络设置
 ==========
 
@@ -197,7 +199,7 @@ chipyard安装的详细信息见 [此处](https://chipyard.readthedocs.io/en/sta
 若已经安装chipyard的toolchain，且在当前环境中运行过env.sh的话，本步骤要求的"have riscv g++ in your PATH"条件就已经满足。
 本部分分为如下几步：
 
-1.1.下载安装onnxruntime
+2.1.下载安装onnxruntime
 
 安装前首先删除位于 ```chipyard/generators/gemmini/software```中的onnxruntime-riscv文件夹
 
@@ -209,7 +211,7 @@ git submodule update --init --recursive
 #安装新版本的onnxruntime-riscv
 ```
 
-1.2. 选择启用的Gemmini数据类型
+2.2. 选择启用的Gemmini数据类型
 
 在编译onnxruntime前，需要选择启用的Gemmini数据类型，有fp32与int8可选。选择方式是通过修改```chipyard/generators/gemmini/software/onnxruntime-riscv/cmake/CMakeLists.txt ```文件，找到其中的
 
@@ -227,28 +229,134 @@ option(onnxruntime_SYSTOLIC_INT8 "If Systolic is enabled, whether to use for int
 
 *此处需要注意，fp32与int8同时只能选择启用一项，两者不可兼容。
 
-*其中，如果模型是用于训练，则必须启用fp32.而如果模型是已量化的模型，已将数据转化为int8类型以利用Systolic进行推理的话，则需要启用int8。若启用的类型与模型不符，在运行模型的时候会报“Unsupport datatype” 错误。
+*其中，如果模型是用于训练，则必须启用fp32.而如果模型是已量化的模型，已将数据转化为int8类型以利用Systolic进行推理的话，则需要启用int8。若启用的类型与模型不符，在运行模型的时候会报“bad syscall” 错误。
 
 *当需要重新编译onnxruntime的时候，必须首先删除```onnxruntime-riscv/build```文件夹，否则运行```build.sh```脚本的时候实际上并不会应用新的设置。
 
-1.3. 编译ORT
+2.3. 编译ORT
 
 在```onnxruntime-riscv```目录下运行```./build.sh --config=Release --parallel```, 以编译ORT(Onnxruntime)。编译的输出可以在```build```文件夹下找到。
 
 其中--config=Release代表以release（-O3）模式编译，--parallel代表并行进行编译。如果希望ORT支持模型训练，还需要加上--enable_training选项。
 
-1.4. 编译runer
+2.4. 编译runner
 
-Model runner为用于加载ONNX模型进行推理的程序，上一步编译的ORT实际上就是在runner中被调用以完成推理的。对于某种特定的ONNX模型，需要特定的runner以支持其运行。在onnxruntime-riscv/systolic_runner中提供了特定的几个runner(或trainer)以支持模型进行推理或训练,此处以imagenet_runner为例：
+Model runner为用于加载ONNX模型进行推理的程序，上一步编译的ORT实际上就是在runner中被调用以完成推理的。对于某种特定的ONNX模型，需要特定的runner以支持其运行。在onnxruntime-riscv/systolic_runner中提供了特定的几个runner(或trainer)以支持模型进行推理或训练。
 
-*若希望移植其他类型的模型，而此处又没有提供相应的runner，则可能需要自行编写。而关于使用C/C++自行编写model runner，[ONNX官方网站]()上提供的教程极少，仅有ORT的API doc与示例程序且缺乏解释与注释。如果需要参考，```onnxruntime-riscv/systolic_runner```提供的诸个runner的源码。而ONNX提供给其他语言（如Python）的教程，
+此处以编译imagenet_runner为例：
+
+```shell
+cd onnxruntime-riscv/systolic_runner/imagenet_runner
+./build.sh --config=Release --parallel
+#此处用于编译runner，输入的命令选项应当与编译ORT时一致。编译的输出为对应目录下的ORT_TEST 文件
+```
+*当修改配置重新编译ORT时，需要将此处的ORT_TEST 一并删除且重新编译。
 
 
-5. ```Running via Spike```
+*若希望移植其他类型的模型，而此处又没有提供相应的runner，则可能需要自行编写。而关于使自行编写model runner，[ONNX官方网站](https://onnxruntime.ai/docs/)上提供的C/C++教程极少，仅有ORT的API doc与示例程序且缺乏解释与注释。如果需要参考，可以查看```onnxruntime-riscv/systolic_runner```提供的诸个runner的源码。而ONNX提供给其他语言（如Python）的教程，则更为详细一些，也可以作为参考。
 
 
+3. ```Running via Spike```
 
+首先关于[onnxruntime-riscv](https://github.com/ucb-bar/onnxruntime-riscv/blob/2021-12-23/systolic_runner/docs/BUILD.md)文档中此部分的操作，需要注意的是这部分操作不再是在```onnxruntime-riscv```下执行，而均是在```chipyard//toolchains/esp-tools```目录下完成的，这点在执行前需要注意。
 
+这部分的功能是为了使用spike执行runner并加载onnx模型进行推理的一些前置工作，若并不打算通过spike执行则可以跳过该部分。
+
+包括如下几个步骤：
+
+1.patch riscv-pk to no-op the futex and tid syscalls
+
+本部分需要遵照如下的diff修改```chipyard/toolchains/esp-tools/riscv-pk/pk```中的```syscall.h```与```syscall.c```
+```shell
+--- a/pk/syscall.h
++++ b/pk/syscall.h
+@@ -52,6 +52,9 @@
+ #define SYS_clock_gettime 113
+ #define SYS_set_tid_address 96
+ #define SYS_set_robust_list 99
++#define SYS_futex 98
++#define SYS_gettid 178
+
+ #define OLD_SYSCALL_THRESHOLD 1024
+
+ #define SYS_open 1024
+```
+
+```shell
+diff --git a/pk/syscall.c b/pk/syscall.c
+@@ -434,6 +434,7 @@ long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, unsigned l
+     [SYS_brk] = sys_brk,
+     [SYS_uname] = sys_uname,
+     [SYS_getpid] = sys_getpid,
++    [SYS_gettid] = sys_getpid,
+     [SYS_getuid] = sys_getuid,
+     [SYS_geteuid] = sys_getuid,
+     [SYS_getgid] = sys_getuid,
+
+@@ -462,6 +463,7 @@ long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, unsigned l
+     [SYS_chdir] = sys_chdir,
+     [SYS_set_tid_address] = sys_stub_nosys,
+     [SYS_set_robust_list] = sys_stub_nosys,
++    [SYS_futex] = sys_stub_success,
+   };
+```
+
+实际文件中的内容可能和此处的描述略有不同，但并不影响运行。
+
+文档中提到的"double check that the proxy kernel is patched to enable RoCC extensions"的步骤，经过测试发现实际文件内容已经和文档里描述的完全不同，经过测试也发现该部分事实上可以忽略。
+
+2.rebuild pk
+
+该部分的操作需要在```chipyard/toolchains/esp-tools/riscv-pk/pk```目录下完成
+
+```shell
+$ mkdir build
+$ cd build
+$ ../configure --prefix=$RISCV --host=riscv64-unknown-elf
+$ make
+$ make install
+```
+
+最后需要在```chipyard/toolchains/esp-tools/riscv-isa-sim```下执行```git pull origin master```用于让 Spike 使用最新的 Gemmini ISA。
+
+完成该步骤后，若已经准备好现成的已量化的ONNX模型，以及与之对应的model runner，则可以直接执行以完成推理，具体执行所需的命令与参数与相应的runner的实现方式相关。
+
+若以通过spike执行imagenet模型为例，[此处](https://github.com/ucb-bar/onnxruntime-riscv/blob/2021-12-23/systolic_runner/imagenet_runner/README.md)为与imagenet runner对应的文档。若已量化的ONNX模型已经准备好，则可以在```onnxruntime-riscv/systolic_runner/imagenet_runner```目录下执行```spike --extension=gemmini pk ort_test -m googlenet.onnx  -i images/cat.jpg  -p caffe2 -x 1 -O 0```,以执行runner并完成推理。
+
+*其中pk代表使用代理内核；ort_test为imagenet runner的可执行文件； -m googlenet.onnx为加载的模型路径；-i images/cat.jpg 为用于推理的输入（也可以将输入的图片路径写在.txt文件中，以批量输入并推理）；-p caffe2 用于选择processing style，该参数与使用的模型的量化方式相关; -x 1 代表选择执行方式（dataflows），其中0代表选择用cpu执行，1代表output-stationary mode（OS），2代表weight-stationary mode(WS);-O 0代表选择优化等级，0代表禁用优化，99代表启用一切可能的优化
+
+*在使用imagenet runner运行推理时，需要注意：
+
+1.在提高优化等级后，模型内的计算流程可能会发生改变（例如：原本需要调用MatMul执行计算的layer，可能会改为调用Conv)
+
+2.不同dataflow下支持的操作是不同的，例如如果模型中存在conv或add操作，则在OS mode下执行将会报错（"Unsupport datatype"），改为WS mode则可以成功.
+
+3.作者表示目前的onnxruntime-riscv不能支持同时使用OS与WS，因此会导致上述问题，这会在后续版本修复。
+
+若使用项目中已经给出的Imagenet runner与已量化的onnx模型运行推理成功，则说明这部分的安装无误。
+
+导出ONNX模型
+=============================
+ONNX 支持多个主流的深度学习框架，如Pytorch，TensorFlow等等，也支持一些传统的机器学习框架如Sciki-learn, LightGBM, XGBoost, LibSVM。具体的将这些模型转化为ONNX模型的方法可以在[此处](https://onnxruntime.ai/docs/tutorials/accelerate-pytorch/)找到。需要注意的是，若想将这些模型转化为onnx模型，则可能对编写模型时使用的功能有一定限制，否则转化工具可能无法转化成功，具体的限制详见各个框架的转换文档，该部分的文档描述较为详细。
+
+对于ONNX格式的模型，可以在[netron.app](https://netron.app/)上查看其结构。
+
+量化ONNX模型
+=============================
+onnxruntime-riscv提供了将原始的onnx模型进行量化的工具，量化为int8类型的模型更适用于在gemmini的Systolic上运行推理。关于量化工具的介绍详细见[此处](https://github.com/ucb-bar/onnxruntime-riscv/tree/2021-12-23/systolic_runner/quantization)。
+
+关于将一个原始ONNX模型量化的操作步骤则可见[此处](https://github.com/ucb-bar/onnxruntime-riscv/blob/2021-12-23/systolic_runner/imagenet_runner/README.md#e2e-resnet-example),其步骤如下:
+1. 
+```shell
+python3 optimize.py --input=models/resnet50/model.onnx  --output=models/resnet50/model_opt.onnx
+#optimize.py用于优化原模型
+```
+
+2. 
+```shell
+python3 calibrate.py --model_path $MODEL/model_opt.onnx   --dataset_path $MODEL --output_model_path $MODEL/model_opt_quantized.onnx  --static=True --data_preprocess=mxnet --mode=int8
+#calibrate.py用于量化已优化过的模型，其中data_preprocess=mxnet用于选择数据处理的方式, 此处选择的方式应当与运行时的-p 参数一致。
+```
 
 
 

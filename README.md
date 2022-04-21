@@ -13,19 +13,16 @@ Gemmini
 1.完成chipyard，gemmini，onnxruntime-riscv以及相关工具链的安装
 
 2.导出onnx模型：
-
-将待移植的模型利用从onnx支持的框架提供的转换工具，得到onnx模型 
+        将待移植的模型利用从onnx支持的框架提供的转换工具，得到onnx模型 
 
 3.量化onnx模型：
-
-用onnxruntime-riscv中提供的工具，将导出的onnx模型的数据类型从fp32转化为适合gemmini运行的int8，得到一个已量化的onnx模型 
+        用onnxruntime-riscv中提供的工具，将导出的onnx模型的数据类型从fp32转化为适合gemmini运行的int8，得到一个已量化的onnx模型 
 
 4.编写一个与模型对应的Runner：
-
-onnxruntime-riscv已经提供了针对数种模型可用的runner（如imagenet，bert_mask等），但若需要移植的模型属于其他类型，则需要自行编写runner。运行器需要做的主要工作包括：创建ORT_session，并将各个参数（如模型路径，优化的等级，dataflow mode）传递给session；实现一个将input整形为onnx模型可以接收的input_tensor的算法；调用session.run；输出推理结果。
+        onnxruntime-riscv已经提供了针对数种模型可用的runner（如imagenet，bert_mask等），但若需要移植的模型属于其他类型，则需要自行编写runner。运行器需要做的主要工作包括：创建ORT_session，并将各个参数（如模型路径，优化的等级，dataflow mode）传递给session；实现一个将input整形为onnx模型可以接收的input_tensor的算法；调用session.run；输出推理结果。
 
 5.运行编译好的Runner：
-待推理的输入数据，已量化的onnx模型将会作为runner程序的输入，推理结果由运行器给出。模型与gemmini的交互，各层运算操作将会在执行session.run后自动执行，不需人工干预。
+        待推理的输入数据，已量化的onnx模型将会作为runner程序的输入，推理结果由运行器给出。模型与gemmini的交互，各层运算操作将会在执行session.run后自动执行，不需人工干预。
 
 预计移植一个模型的主要工作量在于：
 
@@ -212,7 +209,7 @@ chipyard安装的详细信息见 [此处](https://chipyard.readthedocs.io/en/sta
 
 因此不需要执行gemmini中software介绍的步骤，而可以直接阅读[此处](https://github.com/ucb-bar/onnxruntime-riscv/blob/2021-12-23/systolic_runner/docs/BUILD.md)文档中的步骤进行操作。若要测试在spike上运行模型，则需要根据如下步骤操作。此文档存在部分描述不清和细节缺失的问题，详细描述如下：
 
-1.```Setting up your Toolchain``` 本步骤对应的是安装chipyard时运行的```./scripts/build-toolchains.sh esp-tools```命令。若已经根据上述步骤成功安装chipyard 的Toolchain，则本部分不需要额外操作。
+1. ```Setting up your Toolchain``` 本步骤对应的是安装chipyard时运行的```./scripts/build-toolchains.sh esp-tools```命令。若已经根据上述步骤成功安装chipyard 的Toolchain，则本部分不需要额外操作。
 
 2. ```Building this repo```
 *在运行该部分前需要运行```cmake --version```确认当前环境的cmake版本是否大于3.12.0，若不满足，后续的步骤会报错。此处要求的cmake由于版本较新，可能并不支持自动安装，而需要手动拉取源码并进行编译。[此处](https://blog.csdn.net/Boys_Wu/article/details/104940575)为教程。

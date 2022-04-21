@@ -277,13 +277,13 @@ chipyard安装的详细信息见 [此处](https://chipyard.readthedocs.io/en/sta
 
 3. ```Running via Spike```
 
-首先关于[onnxruntime-riscv](https://github.com/ucb-bar/onnxruntime-riscv/blob/2021-12-23/systolic_runner/docs/BUILD.md)文档中此部分的操作，需要注意的是这部分操作不再是在```onnxruntime-riscv```下执行，而均是在```chipyard//toolchains/esp-tools```目录下完成的，这点在执行前需要注意。
+*关于[onnxruntime-riscv](https://github.com/ucb-bar/onnxruntime-riscv/blob/2021-12-23/systolic_runner/docs/BUILD.md)文档中此部分的操作，需要注意的是这部分操作不再是在```onnxruntime-riscv```目录下执行，而是在```chipyard//toolchains/esp-tools```目录下完成的，这点在执行前需要注意。
 
 这部分的功能是为了使用spike执行runner并加载onnx模型进行推理的一些前置工作，若并不打算通过spike执行则可以跳过该部分。
 
 包括如下几个步骤：
 
-1.patch riscv-pk to no-op the futex and tid syscalls
+3.1. patch riscv-pk to no-op the futex and tid syscalls
 
 本部分需要遵照如下的diff修改```chipyard/toolchains/esp-tools/riscv-pk/pk```中的```syscall.h```与```syscall.c```
 ```shell
@@ -324,7 +324,7 @@ diff --git a/pk/syscall.c b/pk/syscall.c
 
 文档中提到的"double check that the proxy kernel is patched to enable RoCC extensions"的步骤，经过测试发现实际文件内容已经和文档里描述的完全不同，经过测试也发现该部分事实上可以忽略。
 
-2.rebuild pk
+3.2. rebuild pk
 
 该部分的操作需要在```chipyard/toolchains/esp-tools/riscv-pk/pk```目录下完成
 

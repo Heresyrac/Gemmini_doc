@@ -195,7 +195,7 @@ chipyard安装的详细信息见 [此处](https://chipyard.readthedocs.io/en/sta
 
 6.```Run Simulators``` 本部分用于运行测试程序
 
-若Run Simulators内的步骤运行成功，则说明本部分安装成功。
+若Run Simulators内的命令运行成功，则说明本部分安装成功。
 
 *如前文所述，本部分安装步骤需要运行大量脚本，其运行时间可能较长，如果运行中途出现网络问题导致脚本运行失败，则最好直接删除chipyard文件，解决网络问题后重新安装以避免后续可能出现的各种问题。
 
@@ -212,63 +212,64 @@ chipyard安装的详细信息见 [此处](https://chipyard.readthedocs.io/en/sta
 1. ```Setting up your Toolchain``` 本步骤对应的是安装chipyard时运行的```./scripts/build-toolchains.sh esp-tools```命令。若已经根据上述步骤成功安装chipyard 的Toolchain，则本部分不需要额外操作。
 
 2. ```Building this repo```
+
 *在运行该部分前需要运行```cmake --version```确认当前环境的cmake版本是否大于3.12.0，若不满足，后续的步骤会报错。此处要求的cmake由于版本较新，可能并不支持自动安装，而需要手动拉取源码并进行编译。[此处](https://blog.csdn.net/Boys_Wu/article/details/104940575)为教程。
 
 若已经安装chipyard的toolchain，且在当前环境中运行过env.sh的话，本步骤要求的"have riscv g++ in your PATH"条件就已经满足。
 本部分分为如下几步：
 
-2.1.下载安装onnxruntime
+        2.1.  下载安装onnxruntime
 
-安装前首先删除位于 ```chipyard/generators/gemmini/software```中的onnxruntime-riscv文件夹
+          安装前首先删除位于 ```chipyard/generators/gemmini/software```中的onnxruntime-riscv文件夹
 
-```shell
-cd chipyard/generators/gemmini/software
-rm -rf onnxruntime-riscv
-git clone  git@github.com:ucb-bar/onnxruntime-riscv.git
-git submodule update --init --recursive
-#安装新版本的onnxruntime-riscv
-```
+        ```shell
+        cd chipyard/generators/gemmini/software
+        rm -rf onnxruntime-riscv
+        git clone  git@github.com:ucb-bar/onnxruntime-riscv.git
+        git submodule update --init --recursive
+        #安装新版本的onnxruntime-riscv
+        ```
 
-2.2. 选择启用的Gemmini数据类型
+        2.2.  选择启用的Gemmini数据类型
 
-在编译onnxruntime前，需要选择启用的Gemmini数据类型，有fp32与int8可选。选择方式是通过修改```chipyard/generators/gemmini/software/onnxruntime-riscv/cmake/CMakeLists.txt ```文件，找到其中的
+        在编译onnxruntime前，需要选择启用的Gemmini数据类型，有fp32与int8可选。选择方式是通过修改```chipyard/generators/gemmini/software/onnxruntime-riscv/cmake/CMakeLists.txt ```文件，找到其中的
 
-```shell
-option(onnxruntime_SYSTOLIC_FP32 "If Systolic is enabled, whether to use for fp32 ops" ON)
-option(onnxruntime_SYSTOLIC_INT8 "If Systolic is enabled, whether to use for int8 ops" OFF) 
-```
+        ```shell
+        option(onnxruntime_SYSTOLIC_FP32 "If Systolic is enabled, whether to use for fp32 ops" ON)
+        option(onnxruntime_SYSTOLIC_INT8 "If Systolic is enabled, whether to use for int8 ops" OFF) 
+        ```
 
-并进行修改。
+        并进行修改。
 
-文档中提到的需要确认```systolic_params.h```，```gemmini_params.h```文件是否一致，但在测试中，当前版本在此处并不需要特别进行什么操作。
+        文档中提到的需要确认```systolic_params.h```，```gemmini_params.h```文件是否一致，但在测试中，当前版本在此处并不需要特别进行什么操作。
 
-如果确实需要确认则这两个文件的具体地址分别位于```gemmini/software/gemmini-rocc-tests/include/gemmini_params.h```与```onnxruntime-riscv/onnxruntime/core/mlas/lib/systolic/systolic_params_int8.h```
+        如果确实需要确认则这两个文件的具体地址分别位于```gemmini/software/gemmini-rocc-tests/include/gemmini_params.h```与```onnxruntime-riscv/onnxruntime/core/mlas/lib/systolic/systolic_params_int8.h```
 
 
-*此处需要注意，fp32与int8同时只能选择启用一项，两者不可兼容。
+        *此处需要注意，fp32与int8同时只能选择启用一项，两者不可兼容。
 
-*其中，如果模型是用于训练，则必须启用fp32.而如果模型是已量化的模型，已将数据转化为int8类型以利用Systolic进行推理的话，则需要启用int8。若启用的类型与模型不符，在运行模型的时候会报“bad syscall” 错误。
+        *其中，如果模型是用于训练，则必须启用fp32.而如果模型是已量化的模型，已将数据转化为int8类型以利用Systolic进行推理的话，则需要启用int8。若启用的类型与模型不符，在运行模型的时候会报“bad syscall” 错误。
 
-*当需要重新编译onnxruntime的时候，必须首先删除```onnxruntime-riscv/build```文件夹，否则运行```build.sh```脚本的时候实际上并不会应用新的设置。这种情况下后续的runner也应当重新编译以应用更改。
+        *当需要重新编译onnxruntime的时候，必须首先删除```onnxruntime-riscv/build```文件夹，否则运行```build.sh```脚本的时候实际上并不会应用新的设置。这种情况下后续的runner也应当重新编译以应用更改。
 
-2.3. 编译ORT
+        2.3. 编译ORT
 
-在```onnxruntime-riscv```目录下运行```./build.sh --config=Release --parallel```, 以编译ORT(Onnxruntime)。编译的输出可以在```build```文件夹下找到。
+        在```onnxruntime-riscv```目录下运行```./build.sh --config=Release --parallel```, 以编译ORT(Onnxruntime)。编译的输出可以在```build```文件夹下找到。
 
-其中--config=Release代表以release（-O3）模式编译，--parallel代表并行进行编译。如果希望ORT支持模型训练，还需要加上--enable_training选项。
+        其中--config=Release代表以release（-O3）模式编译，--parallel代表并行进行编译。如果希望ORT支持模型训练，还需要加上--enable_training选项。
 
-2.4. 编译runner
+        2.4. 编译runner
 
-Model runner为用于加载ONNX模型进行推理的程序，上一步编译的ORT实际上就是在runner中被调用以完成推理的。对于某种特定的ONNX模型，需要特定的runner以支持其运行。在onnxruntime-riscv/systolic_runner中提供了特定的几个runner(或trainer)以支持模型进行推理或训练。
+        Model runner为用于加载ONNX模型进行推理的程序，上一步编译的ORT实际上就是在runner中被调用以完成推理的。对于某种特定的ONNX模型，需要特定的runner以支持其运行。在onnxruntime-riscv/systolic_runner中提供了特定的几个runner(或trainer)以支持模型进行推理或训练。
 
-此处以编译imagenet_runner为例：
+        此处以编译imagenet_runner为例：
 
-```shell
-cd onnxruntime-riscv/systolic_runner/imagenet_runner
-./build.sh --config=Release --parallel
-#此处用于编译runner，输入的命令选项应当与编译ORT时一致。编译的输出为对应目录下的ORT_TEST 文件
-```
-*当修改配置重新编译ORT时，需要将此处的ORT_TEST 一并删除且重新编译。
+        ```shell
+        cd onnxruntime-riscv/systolic_runner/imagenet_runner
+        ./build.sh --config=Release --parallel
+        #此处用于编译runner，输入的命令选项应当与编译ORT时一致。编译的输出为对应目录下的ORT_TEST 文件
+        ```
+        *当修改配置重新编译ORT时，需要将此处的ORT_TEST 一并删除且重新编译。
 
 
 
@@ -392,7 +393,7 @@ onnxruntime-riscv 提供的可以适用于各类模型的runner可以在[此处]
 
 关于使自行编写model runner，[ONNX官方网站](https://onnxruntime.ai/docs/)上提供的C/C++教程极少，仅有ORT的API doc与示例程序且缺乏解释与注释。如果需要参考，可以查看```onnxruntime-riscv/systolic_runner```提供的诸个runner的源码，[onnxruntime-riscv](https://github.com/ucb-bar/onnxruntime-riscv/tree/2021-12-23/systolic_runner/docs)中也提供了数个对开发者理解onnx有帮助的文档，但同样内容不多且不成体系，仅仅从作者个人角度粗略介绍了一些开发中需要注意的问题。而ONNX提供给其他语言（如Python）的教程，则比起C/C++更为详细一些，也可以作为参考。
 
-如果基于[magenet runner的部分源码](https://github.com/ucb-bar/onnxruntime-riscv/blob/2021-12-23/systolic_runner/imagenet_runner/src/runner.cpp)分析ONNX API的使用，运行器需要做的主要工作包括：
+如果基于[imagenet runner的部分源码](https://github.com/ucb-bar/onnxruntime-riscv/blob/2021-12-23/systolic_runner/imagenet_runner/src/runner.cpp)分析ONNX API的使用，运行器需要做的主要工作包括：
 
 1.创建ORT_session，并将各个参数（如模型路径，优化的等级，dataflow mode）传递给session；
 

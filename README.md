@@ -3,7 +3,7 @@
 Gemmini
 ====================================
 
-本文档将会介绍将深度学习模型移植到gemmini上，并使用spike模拟器运行模型完成推理的一般步骤,同时会介绍了一些操作过程中可能遇到的弯路以及规避方式。
+本文档将会介绍将深度学习模型移植到gemmini上，并使用spike模拟器运行模型完成推理的一般步骤。同时会介绍了一些操作过程中可能遇到的弯路以及规避方式。
 流程主要涉及到三个项目，[chipyard](https://chipyard.readthedocs.io/en/stable/)，[gemmini](https://github.com/ucb-bar/gemmini), [onnxruntime_riscv](https://github.com/ucb-bar/onnxruntime-riscv)
 
 
@@ -12,30 +12,32 @@ Gemmini
 
 1.完成chipyard，gemmini，onnxruntime-riscv以及相关工具链的安装
 
-2.导出onnx模型。
+2.导出onnx模型：
 
 将待移植的模型利用从onnx支持的框架提供的转换工具，得到onnx模型 
 
-3.量化onnx模型。
+3.量化onnx模型：
 
 用onnxruntime-riscv中提供的工具，将导出的onnx模型的数据类型从fp32转化为适合gemmini运行的int8，得到一个已量化的onnx模型 
 
-4.编写一个与模型对应的Runner。
+4.编写一个与模型对应的Runner：
 
-onnxruntime-riscv已经提供了针对数种模型可用的runner（如imagenet，bert_mask等），但若需要移植的模型属于其他类型，则需要自行编写runner，并在其中调用onnx的api以。运行器需要做的主要工作包括：创建ORT_session； 将各个参数（如模型路径，优化的等级，dataflow mode）传递给session；实现一个将input整形为onnx模型可以接收的input_tensor的算法；调用session.run；输出推理结果。
+onnxruntime-riscv已经提供了针对数种模型可用的runner（如imagenet，bert_mask等），但若需要移植的模型属于其他类型，则需要自行编写runner。运行器需要做的主要工作包括：创建ORT_session，并将各个参数（如模型路径，优化的等级，dataflow mode）传递给session；实现一个将input整形为onnx模型可以接收的input_tensor的算法；调用session.run；输出推理结果。
 
-5.运行编译好的Runner。
-待推理的数据，已量化的onnx模型将会作为runner的输入，推理结果由运行器给出。模型与gemmini的交互，各层运算操作将会在执行session.run后自动执行，不需人工干预。
+5.运行编译好的Runner：
+待推理的输入数据，已量化的onnx模型将会作为runner程序的输入，推理结果由运行器给出。模型与gemmini的交互，各层运算操作将会在执行session.run后自动执行，不需人工干预。
 
 预计移植一个模型的主要工作量在于：
 
-1. 编写runner部分，该部分ONNX提供的C++教程内容极少，不成体系。估计只能通过仿写onnxruntime—riscv中提供的运行器源码完成，编写运行器的工作会存在困难
+1. 编写runner部分，该部分ONNX提供的C++教程内容极少，不成体系。估计只能通过仿写onnxruntime—riscv中提供的运行器源码完成，编写运行器的工作会存在困难。
 
-2. onnxruntime—riscv的自动执行并不足够可靠，非常容易遇到运行失败的情况，即使使用他在项目中已发布的模型已发布的运行器也会遇到。可以预计如果随便编写一个另外的runner执行其他任务，不能期待onnxruntime—riscv可以完美地自动执行，会需要大量的调试成本。
+2. onnxruntime—riscv的自动执行并不足够可靠，非常容易遇到运行失败的情况，即使使用作者在项目中已发布的模型、已发布的运行器也会遇到。可以预计如果随意编写一个另外的runner执行其他任务，不能期待onnxruntime—riscv可以完美地自动执行，大概率会需要较大的调试成本。
 
-3. 导出onnx模型，该部分也并不能保证任何模型都能转换成功，可能会遇到一定的问题，但这部分的工具是由深度学习框架给出的，文档较为完善，但内容也相对较多，预计也会有一定的工作量。
+3. 量化器，据onnxruntime-riscv作者在[文档](https://github.com/ucb-bar/onnxruntime-riscv/blob/2021-12-23/systolic_runner/docs/bumping.md)中所说，由于onnx本身提供的量化器不能很好的支持int8类型，作者作了大量修改才能使其成功运行，但这个量化器并未经过大量测试，在大型的复杂网络上存在出错的可能。因此导出onnx模型后的量化工作也可能出现问题，并不能保证可以运行脚本后一键导出，这部分也可能需要进行大量调试或是修改量化程序。
 
-4. 量化器，据onnxruntime-riscv作者在[文档](https://github.com/ucb-bar/onnxruntime-riscv/blob/2021-12-23/systolic_runner/docs/bumping.md)中所说，由于onnx本身提供的量化器不能很好的支持int8类型，作者作了大量修改才能使其成功运行，但这个量化器并未经过大量测试，在大型的复杂网络上存在出错的可能。因此导出onnx模型后的量化工作也可能出现问题，并不能保证可以运行脚本后一键导出，这部分也可能需要进行大量调试或是修改量化程序。
+4. 导出onnx模型，该部分也并不能保证任何模型都能转换成功，可能会遇到一定的问题，但这部分的工具是由深度学习框架官方给出的，文档较为完善，有经受过更多的测试，预计也会有一定的工作量。
+
+
 
 
 
@@ -369,6 +371,9 @@ python3 calibrate.py --model_path $MODEL/model_opt.onnx   --dataset_path $MODEL 
 运行/编写runner
 =================================
 
+运行已有的imagenet runner
+-------------------------------
+
 若以通过spike执行imagenet模型为例，[此处](https://github.com/ucb-bar/onnxruntime-riscv/blob/2021-12-23/systolic_runner/imagenet_runner/README.md)为与imagenet runner对应的文档。若已量化的ONNX模型已经准备好，则可以在```onnxruntime-riscv/systolic_runner/imagenet_runner```目录下执行```spike --extension=gemmini pk ort_test -m googlenet.onnx  -i images/cat.jpg  -p caffe2 -x 1 -O 0```,以执行runner并完成推理。
 
 *其中pk代表使用代理内核；ort_test为imagenet runner的可执行文件； -m googlenet.onnx为加载的模型路径；-i images/cat.jpg 为用于推理的输入（也可以将输入的图片路径写在.txt文件中，以批量输入并推理）；-p caffe2 用于选择processing style，该参数与使用的模型的量化方式相关; -x 1 代表选择执行方式（dataflows），其中0代表选择用cpu执行，1代表output-stationary mode（OS），2代表weight-stationary mode(WS);-O 0代表选择优化等级，0代表禁用优化，99代表启用一切可能的优化
@@ -385,6 +390,82 @@ python3 calibrate.py --model_path $MODEL/model_opt.onnx   --dataset_path $MODEL 
 
 onnxruntime-riscv 提供的可以适用于各类模型的runner可以在[此处](https://github.com/ucb-bar/onnxruntime-riscv/tree/2021-12-23/systolic_runner)找到，而如果待移植的模型不属于其中，则需要考虑自行编写。
 
+自行编写model runner并运行
+----------------------
+
 关于使自行编写model runner，[ONNX官方网站](https://onnxruntime.ai/docs/)上提供的C/C++教程极少，仅有ORT的API doc与示例程序且缺乏解释与注释。如果需要参考，可以查看```onnxruntime-riscv/systolic_runner```提供的诸个runner的源码，[onnxruntime-riscv](https://github.com/ucb-bar/onnxruntime-riscv/tree/2021-12-23/systolic_runner/docs)中也提供了数个对开发者理解onnx有帮助的文档，但同样内容不多且不成体系，仅仅从作者个人角度粗略介绍了一些开发中需要注意的问题。而ONNX提供给其他语言（如Python）的教程，则比起C/C++更为详细一些，也可以作为参考。
 
-如果以imagenet runner 为例分析ONNX API的使用
+如果基于[magenet runner的部分源码](https://github.com/ucb-bar/onnxruntime-riscv/blob/2021-12-23/systolic_runner/imagenet_runner/src/runner.cpp)分析ONNX API的使用，运行器需要做的主要工作包括：
+
+1.创建ORT_session，并将各个参数（如模型路径，优化的等级，dataflow mode）传递给session；
+
+2.实现一个将input整形为onnx模型可以接收的input_tensor的算法；
+
+3.调用session.run，运行推理；
+
+4.输出推理结果。
+
+```shell
+Ort::Env env(static_cast<OrtLoggingLevel>(cmd["debug"].as<int>()), "test");
+//每个进程对应一个env，env用于维护线程池与存放状态信息
+
+Ort::SessionOptions session_options;
+//session_options用于存放一些ORT参数，并传递给ORT:session
+
+OrtSessionOptionsAppendExecutionProvider_Systolic(session_options, /*use_arena=*/ 1, /*accelerator_mode=*/ (char) cmd["execution"].as<int>())//设置执行模式（dataflow）
+session_options.SetGraphOptimizationLevel(static_cast<GraphOptimizationLevel>(cmd["optimization"].as<int>()));//设置优化等级
+...
+
+Ort::Session session(env, model_path, session_options);//根据决定好的参数，创建session
+...
+
+Ort::AllocatorWithDefaultOptions allocator;//创建Mem allocator
+...
+
+char* input_name = session.GetInputName(i, allocator);
+size_t num_input_nodes = session.GetInputCount();
+Ort::TypeInfo type_info = session.GetInputTypeInfo(i);//从加载的模型中获取input的一些相关信息，如dims，nodenames等
+...
+
+unsigned char *data = stbi_load(path.c_str(), &dimX, &dimY, &numChannels, 0);
+unsigned char *orig_data = data;
+std::vector<float> input_tensor_values(input_tensor_size);
+...
+
+for (int i = 0; i < 224; i++) {
+    for (int j = 0; j < 224; j++) {
+      unsigned char r = *(data++);
+      unsigned char g = *(data++);
+      unsigned char b = *(data++);
+
+      if (preprocess == "caffe2") {
+        input_tensor_values[(0*224 + i)*224 + j] = b - 103.939;
+        input_tensor_values[(1*224 + i)*224 + j] = g - 116.779;
+        input_tensor_values[(2*224 + i)*224 + j] = r - 123.68;  
+      } 
+      else if (preprocess == "caffe") {
+        input_tensor_values[(0*224 + i)*224 + j] = (b - 103.94)*0.017;
+        input_tensor_values[(1*224 + i)*224 + j] = (g - 116.78)*0.017;
+        input_tensor_values[(2*224 + i)*224 + j] = (r - 123.68)*0.017;  
+      } else if (preprocess == "mxnet") {
+        input_tensor_values[(0*224 + i)*224 + j] = (b/255.0 - 0.406)/0.225;
+        input_tensor_values[(1*224 + i)*224 + j] = (g/255.0 - 0.456)/0.224;
+        input_tensor_values[(2*224 + i)*224 + j] = (r/255.0 - 0.485)/0.229;  
+      } else {
+        std::cout << "Unknown preprocess option: " << preprocess << std::endl;
+        exit(1);
+      }
+    }
+  }
+ auto memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+ Ort::Value input_tensor = Ort::Value::CreateTensor<float>(memory_info, input_tensor_values.data(), input_tensor_size, input_node_dims.data(), 4);
+//在本例中，该段算法用于将255*255*3的图片转化为imagenet模型可接受的input_tensor的格式。如果需要执行其他任务，可能需要自行编写类似的算法，其中caffe2，mxnet等参数和使用量化器时使用的量化参数有关。
+...
+
+auto output_tensors = session.Run(Ort::RunOptions{nullptr}, input_node_names.data(), &input_tensor, 1, output_node_names.data(), 1);
+//调用gemmini，执行推理的各层的操作，直到给出推理结果的全部过程都在执行session.Run()的过程中完成。结果则返回为output_tensor
+...
+
+//余下部分为将ouput_tensors显示的代码，此处略
+```
+

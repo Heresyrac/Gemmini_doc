@@ -404,6 +404,7 @@ onnxruntime-riscv 提供的可以适用于各类模型的runner可以在[此处]
 4.输出推理结果。
 
 ```shell
+//此处对imagenet runner源码的中的关键部分进行分析
 Ort::Env env(static_cast<OrtLoggingLevel>(cmd["debug"].as<int>()), "test");
 //每个进程对应一个env，env用于维护线程池与存放状态信息
 
